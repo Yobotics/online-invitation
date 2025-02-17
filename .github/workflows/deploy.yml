@@ -6,8 +6,14 @@ on:
   # Trigger the workflow on push to the master branch
   push:
     branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+  # Allows you to run this workflow manually from the Actions tab on GitHub.
+  workflow_dispatch:
+
+# Allow this job to clone the repo and create a page deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -21,6 +27,8 @@ jobs:
       # Step 1: Checkout the code
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       # Step 2: Set up Node.js environment
       - name: Setup Node.js ${{ matrix.node-version }}
@@ -28,11 +36,20 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
       # Step 3: Install dependencies and  Build the project for web platform
-      - name: Install Dependencies
+      - name: Install Dependencies and build with expo
         run: |
           npm install
           npx expo export --platform web
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
 
   deploy:
     name: Deploy
@@ -40,10 +57,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     runs-on: ubuntu-latest
     steps:
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "${{ inputs.path }}/dist/"
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
